@@ -1,0 +1,118 @@
+package dev.wangqin.tacocloud.data;
+
+import java.sql.Types;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
+
+import dev.wangqin.tacocloud.Ingredient;
+import org.springframework.asm.Type;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.jdbc.core.PreparedStatementCreator;
+import org.springframework.jdbc.core.PreparedStatementCreatorFactory;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import dev.wangqin.tacocloud.IngredientRef;
+import dev.wangqin.tacocloud.Taco;
+import dev.wangqin.tacocloud.TacoOrder;
+
+@Repository
+public class JdbcOrderRepository implements OrderRepository {
+
+  private JdbcOperations jdbcOperations;
+
+  @Autowired
+  public JdbcOrderRepository(JdbcOperations jdbcOperations) {
+    this.jdbcOperations = jdbcOperations;
+  }
+
+  @Override
+  @Transactional
+  public TacoOrder save(TacoOrder order) {
+    /* 1 Create a `PreparedStatementCreatorFactory` that describes the `insert` query along with the types of the query's input fields
+     *   Because later need to fetch the saved order's ID, you also will need to call `setReturnGeneratedKeys(true)`
+     */
+    PreparedStatementCreatorFactory pscf =
+       new PreparedStatementCreatorFactory(
+          "INSERT INTO Taco_Order " +
+             "(delivery_name, delivery_street, delivery_city, delivery_state, delivery_zip, " +
+             "cc_number, cc_expiration, cc_cvv, " +
+             "placed_at) " +
+             "values (?,?,?,?,?,?,?,?,?,)",
+          Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR,
+          Types.VARCHAR, Types.VARCHAR, Types.VARCHAR,
+          Types.TIMESTAMP);
+    pscf.setReturnGeneratedKeys(true);
+
+    /* 2 Use the factory to create a `PreparedStatementCreator`, passing in the values from the `TacoOrder` object that will be persisted.
+     *   The last field given to the ` PreparedStatementCreator` is the date that the order is created, which will also be set on the `TacoOrder` object itself
+     *   so that the returned `TacoOrder` will have that information available.
+     */
+    order.setPlacedAt(new Date());
+    PreparedStatementCreator psc = pscf.newPreparedStatementCreator(
+       Arrays.asList(
+          order.getDeliveryName(), order.getDeliveryStreet(), order.getDeliveryCity(), order.getDeliveryState(), order.getDeliveryZip(),
+          order.getCcNumber(), order.getCcExpiration(), order.getCcCVV(),
+          order.getPlacedAt())
+    );
+
+    /* 3 With a creator in hand, then ready to actually save the order data by calling the `update()` method on `JdbcTemplate`,
+     *   passing in the `PreparedStatementCreator` and a `GeneratedKeyHolder`. After the order data has been saved,
+     *   the `GeneratedKeyHolder` will contain the value of the id field as assigned by the database and
+     *   should be copied into the `TacoOrder` object's `id` property.
+     */
+    GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
+    jdbcOperations.update(psc, keyHolder);
+    long orderId = keyHolder.getKey().longValue();
+    order.setId(orderId);
+
+    /* The order has been saved, but the `Taco` objects associated with the order need also be saved. (by calling `saveTaco` per `Taco`)
+     */
+    List<Taco> tacos = order.getTacos();
+    int i = 0;
+    for (Taco taco : tacos) {
+      saveTaco(orderId, ++i, taco);
+    }
+
+    return order;
+  }
+
+  private long saveTaco(Long orderId, int orderKey, Taco taco) {
+    taco.setCreatedAt(new Date());
+
+    PreparedStatementCreatorFactory pscf = new PreparedStatementCreatorFactory(
+       "INSERT INTO Taco " +
+          "(name, created_at, taco_order, taco_order_key) " +
+          "values (?,?,?,?)",
+       Types.VARCHAR, Types.TIMESTAMP, Type.LONG, Type.LONG
+    );
+
+    PreparedStatementCreator psc = pscf.newPreparedStatementCreator(
+       Arrays.asList(
+          taco.getName(), taco.getCreatedAt(), orderId, orderKey
+       )
+    );
+
+    GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
+    jdbcOperations.update(psc, keyHolder);
+    long tacoId = keyHolder.getKey().longValue();
+    taco.setId(tacoId);
+
+    saveIngredientRef(tacoId, taco.getIngredients());
+
+    return tacoId;
+  }
+
+  private void saveIngredientRef(long tacoId, List<IngredientRef> ingredientRefs) {
+    int key = 0;
+    for (IngredientRef ingredientRef : ingredientRefs) {
+      jdbcOperations.update(
+         "INSERT INTO Ingredient_Ref (ingredient, taco, taco_key) values (?,?,?)",
+         ingredientRef.getIngredient(), tacoId, key++);
+    }
+  }
+}

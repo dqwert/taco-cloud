@@ -1,0 +1,77 @@
+package dev.wangqin.tacocloud.data;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Optional;
+
+import dev.wangqin.tacocloud.Ingredient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class JdbcIngredientRepository implements IngredientRepository {
+
+  private JdbcTemplate jdbcTemplate;
+
+  /* `@Autowired` is optional with the only constructor.
+   * When there's only one constructor, Spring implicitly applies autowiring of dependencies through that constructor's parameters.
+   * If there were more than one constructor, or if you just want autowiring to be explicitly stated, then you can annotated the constructor with `@AutoWired`.
+   */
+  @Autowired
+  public JdbcIngredientRepository(JdbcTemplate jdbcTemplate) {
+    this.jdbcTemplate = jdbcTemplate;
+  }
+
+  @Override
+  public Iterable<Ingredient> findAll() {
+    return jdbcTemplate.query(
+       "SELECT id, name, type FROM Ingredient;",
+       this::mapRowToIngredient);
+  }
+
+  @Override
+  public Optional<Ingredient> findById(String id) {
+    /* The `query()` method accepts the SQL for the query as well as an implementation of Spring's `RowMapper`
+     * for the purpose of mapping each row in the result set to an object.
+     * `query()` also accepts as its final argument(s) a list of any parameters required in the query.
+     */
+    List<Ingredient> results = jdbcTemplate.query(
+       "SELECT id, name, type FROM Ingredient WHERE id=?;",
+       this::mapRowToIngredient,
+       id); // SQL query arguments place at the end
+    return results.size() == 0 ? Optional.empty() : Optional.of(results.get(0));
+  }
+  /* Alternative: explicit `RowMapper` implementation (replace `this::mapRowToIngredient`):
+
+       new RowMapper<Ingredient>() {
+         public Ingredient mapRow(ResultSet row, int rowNum) throws SQLException {
+           return new Ingredient(
+              row.getString("id"),
+              row.getString("name"),
+              Ingredient.Type.valueOf(row.getString("type")));
+         }
+       },
+
+     Note: what's inside new RowMapper<Ingredient> {} is pretty much the same as the private method `mapRowToIngredient()`,
+     except that: 1. change access modifier private to public; 2. change function name mapRowToIngredient to mapRow
+   */
+
+  private Ingredient mapRowToIngredient(ResultSet row, int rowNum) throws SQLException {
+    return new Ingredient(
+       row.getString("id"),
+       row.getString("name"),
+       Ingredient.Type.valueOf(row.getString("type")));
+  }
+
+  @Override
+  public Ingredient save(Ingredient ingredient) {
+    jdbcTemplate.update(
+       "insert into Ingredient (id, name, type) values (?, ?, ?)",
+       ingredient.getId(), ingredient.getName(), ingredient.getType().toString()
+    );
+    return ingredient;
+  }
+}

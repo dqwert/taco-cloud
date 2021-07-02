@@ -48,6 +48,23 @@ The following 4 dependencies, except for the DevTools, have the word `starter` i
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+<!--added in ch03-->
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.boot</groupId>-->
+<!--            <artifactId>spring-boot-starter-jdbc</artifactId>-->
+<!--        </dependency>-->
+
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jdbc</artifactId>
+        </dependency>
+
 <!-- Lombok dependency will provide Lombok annotations at development time and automatic method generation at compile-time. -->
         <dependency>
             <groupId>org.projectlombok</groupId>

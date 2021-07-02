@@ -1,17 +1,34 @@
 package dev.wangqin.tacocloud;
 
+import java.util.Date;
 import java.util.List;
 import java.util.ArrayList;
+import java.io.Serializable;
 import javax.validation.constraints.Digits;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
 import org.hibernate.validator.constraints.CreditCardNumber;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 import lombok.Data;
 
 @Data
-public class TacoOrder {
+@Table  // optional, same as `@Table("Taco_Order")`, can use to change
+public class TacoOrder implements Serializable {
 
+  private static final long serialVersionUID = 1L;
+
+  /* `@Id` designates the `id` property as being the identity for a `TacoOrder`.
+   * All other properties in `TacoOrder` will be mapped automatically to columns based on their property names. (Can be explicitly defined)
+   */
+  @Id
+  private long id;
+
+  private Date placedAt = new Date();
+
+  /* `@Column("customer_name")` to change the default column name
+   */
   @NotBlank(message = "Delivery name is required")
   private String deliveryName;
 

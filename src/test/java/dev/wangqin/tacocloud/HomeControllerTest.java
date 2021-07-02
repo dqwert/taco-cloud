@@ -14,7 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /* Instead of `@SpringBootTest` markup, HomeControllerTest is annotated with `@WebMvcTest`.
  * This is a special test annotation provided by Spring Boot that arranges for the test to run
  * in the context of a Spring MVC application.
- * More specifically, in this case, it arranges for HomeController.removed to be registered in Spring MVC
+ * More specifically, in this case, it arranges for HomeController to be registered in Spring MVC
  * so that you can throw requests against it.
  *
  * `@WebMvcTest` also set up Spring support for testing Spring MVC. Although it could be made to start a server,
